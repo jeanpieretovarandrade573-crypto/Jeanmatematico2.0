@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jean_matematico</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.4.2/math.min.js"></script>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--tx:#1b1d2a;--mu:#6b7085;--ac:#ff5a5f;--ac2:#4c6fff;--bd:#e4e6ef;--grid:#e8eaf2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12141c;--card:#1b1e2a;--tx:#eceef7;--mu:#9aa0b8;--bd:#2c3044;--grid:#262a3c;color-scheme:dark}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:26px;margin:8px 0 2px}h1 span{color:var(--ac)}
+p.s{color:var(--mu);margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:14px;margin-bottom:12px}
+.card h2{font-size:15px;margin:0 0 8px;color:var(--ac2);text-transform:uppercase;letter-spacing:.04em}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+input[type=text]{flex:1;min-width:0;font:inherit;font-size:20px;padding:12px;border-radius:12px;border:2px solid var(--bd);background:var(--bg);color:var(--tx)}
+input[type=text]:focus{outline:none;border-color:var(--ac2)}
+button,label.b{font:inherit;border:0;border-radius:12px;padding:10px 14px;cursor:pointer;background:var(--bd);color:var(--tx);display:inline-block}
+button.p{background:var(--ac);color:#fff;font-weight:600}
+.keys button{padding:8px 11px;font-size:15px}
+.chips button{font-size:14px;background:transparent;border:1px solid var(--bd);color:var(--mu)}
+#pv{max-width:100%;max-height:160px;border-radius:10px;margin-top:8px;display:none}
+#msg{color:var(--mu);font-size:14px;margin-top:8px}
+canvas{width:100%;height:300px;border-radius:12px;background:var(--bg);display:block;touch-action:none}
+code{background:var(--bg);padding:2px 6px;border-radius:6px;font-size:15px;word-break:break-all}
+.k{display:inline-block;margin:2px 0}
+ul{margin:4px 0 0;padding-left:20px}li{margin:3px 0}
+.ft{color:var(--mu);font-size:13px;text-align:center;margin:18px 0}
+</style>
+</head>
+<body>
+<main>
+<h1>Jean_<span>matematico</span></h1>
+<p class="s" style="font-weight:600;color:var(--tx);margin-bottom:4px">Proyecto del estudiante Jean Tovar, Universidad de las Fuerzas Armadas ESPE</p>
+<p class="s">Escribe tu función o toma una foto del ejercicio y obtén dominio, raíces, derivadas, extremos, límites, asíntotas y gráfica paso a paso. Gratis y sin registro.</p>
+
+<div class="card">
+ <div class="row"><input id="in" type="text" placeholder="f(x) = x^2 - 4x + 3" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text"><button class="p" id="go">Resolver</button></div>
+ <div class="row keys" style="margin-top:8px" id="keys"></div>
+ <div class="row chips" style="margin-top:8px" id="ex"></div>
+ <div class="row" style="margin-top:10px">
+  <label class="b">📷 Tomar foto<input type="file" id="cam" accept="image/*" capture="environment" hidden></label>
+  <label class="b">🖼 Subir imagen<input type="file" id="up" accept="image/*" hidden></label>
+ </div>
+ <img id="pv" alt="Foto del ejercicio">
+ <div id="msg"></div>
+</div>
+
+<div id="out"></div>
+<p class="ft">Los resultados numéricos son aproximados (barrido en −100 ≤ x ≤ 100). Verifica siempre los valores importantes.</p>
+</main>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const KEYS=["x","^","(",")","+","−","*","/","√(","ln(","sen(","cos(","tan(","e^","π","⌫","C"];
+$("#keys").innerHTML=KEYS.map(k=>`<button>${k}</button>`).join("");
+$("#keys").onclick=e=>{if(e.target.tagName!=="BUTTON")return;const k=e.target.textContent,i=$("#in");if(k==="C")i.value="";else if(k==="⌫")i.value=i.value.slice(0,-1);else i.value+=k;i.focus()};
+const EX=["x^2-4x+3","(x^2-1)/(x-2)","sin(x)/x","e^x-x","ln(x)/x","x^3-3x"];
+$("#ex").innerHTML="<span style='color:var(--mu);font-size:14px;align-self:center'>Ejemplos:</span>"+EX.map(k=>`<button>${k}</button>`).join("");
+$("#ex").onclick=e=>{if(e.target.tagName==="BUTTON"){$("#in").value=e.target.textContent;solve()}};
+$("#go").onclick=solve;$("#in").onkeydown=e=>{if(e.key==="Enter")solve()};
+const say=t=>$("#msg").textContent=t||"";
+const fix=s=>s.replace(/√/g,"sqrt").replace(/\bln\b/gi,"log").replace(/\bsen\b/gi,"sin").replace(/\btg\b/gi,"tan").replace(/π/g,"pi").replace(/[−–]/g,"-").replace(/[·×]/g,"*").replace(/,/g,".").replace(/^\s*(f\s*\(\s*x\s*\)|y)\s*=/i,"").trim();
+const F=x=>{if(!isFinite(x))return x>0?"∞":x<0?"−∞":"indefinido";if(Math.abs(x)<1e-9)return"0";const r=Math.round(x);return(Math.abs(x-r)<1e-6?String(r):String(+x.toFixed(4))).replace("-","−")};
+const mk=src=>{const c=math.compile(src);c.evaluate({x:1.2345});return x=>{try{const v=c.evaluate({x});return typeof v==="number"&&isFinite(v)?v:NaN}catch(e){return NaN}}};
+const r6=x=>Math.round(x*1e6)/1e6;
+function roots(f,a=-50,b=50,n=5000){const r=[],h=(b-a)/n;let px=a,py=f(a);for(let i=1;i<=n;i++){const x=a+h*i,y=f(x);if(isFinite(py)&&isFinite(y)){if(y===0)r.push(x);else if(py*y<0){let lo=px,hi=x;for(let k=0;k<60;k++){const m=(lo+hi)/2;f(lo)*f(m)<=0?hi=m:lo=m}const z=(lo+hi)/2;if(Math.abs(f(z))<1e-4)r.push(z)}}px=x;py=y}return r.sort((p,q)=>p-q).filter((v,i,A)=>i===0||Math.abs(v-A[i-1])>1e-5)}
+function domain(f){const A=-100,B=100,N=8000,h=(B-A)/N,runs=[];let i=0;while(i<=N){if(isNaN(f(A+i*h))){let j=i;while(j<=N&&isNaN(f(A+j*h)))j++;runs.push([i,j-1]);i=j}else i++}
+const ref=(d,u)=>{for(let k=0;k<60;k++){const m=(d+u)/2;isNaN(f(m))?u=m:d=m}const t=(d+u)/2;return{t:r6(t),c:!isNaN(f(r6(t)))}};
+return runs.map(([s,e])=>{const L=s>0?ref(A+(s-1)*h,A+s*h):null,R=e<N?ref(A+(e+1)*h,A+e*h):null;return{L,R}})}
+function limit(f,s){const a=f(s*1e6),b=f(s*1e9);if(isNaN(a)||isNaN(b))return null;if(Math.abs(a-b)<1e-3*(1+Math.abs(a)))return{v:b};return Math.abs(b)>Math.abs(a)?{v:b>0?Infinity:-Infinity}:null}
+function intervals(pts,g,lo=-100,hi=100){const c=[lo,...pts,hi],o=[];for(let i=0;i<c.length-1;i++){const m=(c[i]+c[i+1])/2,v=g(m);if(isNaN(v))continue;const a=i===0?"−∞":F(c[i]),b=i===c.length-2?"∞":F(c[i+1]);o.push({txt:`(${a}, ${b})`,pos:v>0})}return o}
+let G={};
+function solve(){
+ const raw=$("#in").value;if(!raw.trim()){say("Escribe una función, por ejemplo x^2 - 4x + 3");return}
+ const src=fix(raw);let f,d1,d2,s1,s2,ast;
+ try{ast=math.parse(src);f=mk(src)}catch(e){say("No pude entender esa función. Usa x como variable, por ejemplo: (x^2-1)/(x-2)");$("#out").innerHTML="";return}
+ say("");
+ try{s1=math.simplify(math.derivative(src,"x")).toString();s2=math.simplify(math.derivative(s1,"x")).toString();d1=mk(s1);d2=mk(s2)}catch(e){}
+ const h=1e-5;d1=d1||(x=>(f(x+h)-f(x-h))/(2*h));d2=d2||(x=>(d1(x+h)-d1(x-h))/(2*h));
+ const S=[],add=(t,b)=>S.push(`<div class="card"><h2>${t}</h2>${b}</div>`);
+ const dom=domain(f),dtxt=[],asy=[],holes=[];
+ dom.forEach(({L,R})=>{const sy=(p,c,lt)=>lt?(c?`x ≤ ${F(p)}`:`x < ${F(p)}`):(c?`x ≥ ${F(p)}`:`x > ${F(p)}`);
+  if(L&&R&&R.t-L.t<1e-3){const p=(L.t+R.t)/2;dtxt.push(`x ≠ ${F(p)}`);const a=f(p-1e-6),b=f(p+1e-6);if(Math.abs(a)>1e4||Math.abs(b)>1e4)asy.push(p);else holes.push([p,b])}
+  else if(L&&R)dtxt.push(`${sy(L.t,L.c,1)} o ${sy(R.t,R.c,0)}`);
+  else if(R)dtxt.push(sy(R.t,R.c,0));else if(L)dtxt.push(sy(L.t,L.c,1));else dtxt.push("la función no está definida en el rango analizado");
+  [L,R].forEach(b=>{if(b&&!b.c&&Math.abs(f(b.t+(b===L?-1:1)*1e-7))>1e5&&!asy.includes(b.t))asy.push(b.t)})});
+ add("1 · Dominio",`<span class="k">Dom f: ${dtxt.length?esc(dtxt.join(" y ")):"ℝ (todos los reales)"}</span>`);
+ const rt=roots(f),ex=[];const crit=roots(d1);crit.forEach(c=>{if(Math.abs(f(c))<1e-6&&!rt.some(r=>Math.abs(r-c)<1e-4))rt.push(c)});rt.sort((a,b)=>a-b);
+ add("2 · Cortes con los ejes",`<ul><li>Con el eje Y: f(0) = ${isNaN(f(0))?"no existe":F(f(0))}</li><li>Con el eje X (f(x) = 0): ${rt.length?rt.map(r=>"x = "+F(r)).join(", "):"no se encontraron en [−50, 50]"}</li></ul>`);
+ if(s1){const R=new Set();ast.traverse(n=>{if(n.isOperatorNode){if(n.op==="^")R.add("regla de la potencia y de la exponencial");if(n.op==="/")R.add("regla del cociente");if(n.op==="*"&&n.args.every(a=>!a.isConstantNode))R.add("regla del producto");if(n.op==="+"||n.op==="-")R.add("derivar término a término")}if(n.isFunctionNode)R.add("derivada de "+n.fn.name+" con regla de la cadena")});
+  add("3 · Derivadas",`<p>Reglas: ${[...R].join("; ")||"constantes y x"}.</p><ul><li>f′(x) = <code>${esc(s1)}</code></li><li>f″(x) = <code>${esc(s2)}</code></li></ul>`)}
+ const ci=crit.filter(c=>!isNaN(f(c))).map(c=>{const a=d1(c-1e-3),b=d1(c+1e-3),t=a<0&&b>0?"mínimo local":a>0&&b<0?"máximo local":"punto crítico sin extremo";return`<li>x = ${F(c)}: ${t}, f(${F(c)}) = ${F(f(c))}</li>`});
+ const mi=intervals(crit,d1).map(i=>`<li>${i.txt}: ${i.pos?"crece ↗":"decrece ↘"}</li>`);
+ add("4 · Crecimiento y extremos",`<p>Se resuelve f′(x) = 0 y se estudia el signo de f′:</p><ul>${ci.join("")||"<li>Sin puntos críticos en [−50, 50]</li>"}${mi.join("")}</ul>`);
+ const inf=roots(d2).filter(c=>!isNaN(f(c)));
+ add("5 · Concavidad",`<p>Se resuelve f″(x) = 0 y se estudia el signo de f″:</p><ul>${inf.map(c=>`<li>Inflexión en x = ${F(c)}, f(${F(c)}) = ${F(f(c))}</li>`).join("")}${intervals(inf,d2).map(i=>`<li>${i.txt}: ${i.pos?"cóncava hacia arriba ∪":"cóncava hacia abajo ∩"}</li>`).join("")}</ul>`);
+ const lp=limit(f,1),ln=limit(f,-1),li=[];
+ li.push(`lím x→+∞ f(x) = ${lp?F(lp.v):"no determinado"}`);li.push(`lím x→−∞ f(x) = ${ln?F(ln.v):"no determinado"}`);
+ asy.forEach(p=>li.push(`Asíntota vertical: x = ${F(p)}`));holes.forEach(([p,v])=>li.push(`Hueco en x = ${F(p)} (el límite vale ${F(v)})`));
+ if(lp&&isFinite(lp.v))li.push(`Asíntota horizontal (derecha): y = ${F(lp.v)}`);if(ln&&isFinite(ln.v)&&(!lp||Math.abs(ln.v-lp.v)>1e-6))li.push(`Asíntota horizontal (izquierda): y = ${F(ln.v)}`);
+ if(lp&&!isFinite(lp.v)){const m=f(1e6)/1e6;if(isFinite(m)&&Math.abs(m)>1e-4)li.push(`Posible asíntota oblicua: y ≈ ${F(m)}x + ${F(f(1e6)-m*1e6)}`)}
+ add("6 · Límites y asíntotas",`<ul>${li.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>`);
+ const pts=[...rt.map(x=>({x,y:0,c:"#ff5a5f"})),...crit.filter(c=>!isNaN(f(c))).map(x=>({x,y:f(x),c:"#4c6fff"})),...inf.map(x=>({x,y:f(x),c:"#2fb67c"}))];
+ const xs=pts.map(p=>p.x).concat(asy),span=xs.length?Math.max(...xs.map(Math.abs)):0,w=Math.min(Math.max(span*1.4,6),60);
+ G={f,x0:-w,x1:w,pts,asy};
+ $("#out").innerHTML=`<div class="card"><h2>Gráfica</h2><canvas id="cv"></canvas><div class="row" style="margin-top:8px"><button id="zi">＋ Acercar</button><button id="zo">－ Alejar</button><button id="zr">Restablecer</button></div><p style="color:var(--mu);font-size:13px;margin:8px 0 0">● raíces  ● extremos  ● inflexiones</p></div>`+S.join("");
+ const z=k=>{const c=(G.x0+G.x1)/2,hw=(G.x1-G.x0)/2*k;G.x0=c-hw;G.x1=c+hw;draw()};
+ $("#zi").onclick=()=>z(.6);$("#zo").onclick=()=>z(1.6);$("#zr").onclick=()=>{G.x0=-w;G.x1=w;draw()};
+ draw();$("#out").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function draw(){const c=$("#cv");if(!c||!G.f)return;const r=devicePixelRatio||1,W=c.clientWidth,H=c.clientHeight;c.width=W*r;c.height=H*r;const g=c.getContext("2d");g.scale(r,r);
+ const cs=getComputedStyle(document.documentElement),col=n=>cs.getPropertyValue(n).trim(),{f,x0,x1}=G,ys=[];
+ for(let i=0;i<=W;i++){const y=f(x0+(x1-x0)*i/W);if(isFinite(y))ys.push(y)}ys.sort((a,b)=>a-b);
+ let lo=ys.length?ys[Math.floor(ys.length*.03)]:-5,hi=ys.length?ys[Math.floor(ys.length*.97)]:5;if(hi-lo<1e-6){lo-=1;hi+=1}const p=(hi-lo)*.2;lo-=p;hi+=p;
+ const X=x=>(x-x0)/(x1-x0)*W,Y=y=>H-(y-lo)/(hi-lo)*H,nice=v=>{const e=Math.pow(10,Math.floor(Math.log10(v))),m=v/e;return(m<1.5?1:m<3.5?2:m<7.5?5:10)*e};
+ g.font="11px system-ui";g.fillStyle=col("--mu");g.strokeStyle=col("--grid");g.lineWidth=1;
+ const sx=nice((x1-x0)/6),sy=nice((hi-lo)/5);
+ for(let x=Math.ceil(x0/sx)*sx;x<=x1;x+=sx){g.beginPath();g.moveTo(X(x),0);g.lineTo(X(x),H);g.stroke();g.fillText(F(x),X(x)+2,Math.min(Math.max(Y(0),10),H-3))}
+ for(let y=Math.ceil(lo/sy)*sy;y<=hi;y+=sy){g.beginPath();g.moveTo(0,Y(y));g.lineTo(W,Y(y));g.stroke();g.fillText(F(y),Math.min(Math.max(X(0),0),W-30)+3,Y(y)-2)}
+ g.strokeStyle=col("--mu");g.lineWidth=1.5;g.beginPath();g.moveTo(X(0),0);g.lineTo(X(0),H);g.moveTo(0,Y(0));g.lineTo(W,Y(0));g.stroke();
+ g.setLineDash([5,4]);g.strokeStyle="#ff5a5f";G.asy.forEach(a=>{g.beginPath();g.moveTo(X(a),0);g.lineTo(X(a),H);g.stroke()});g.setLineDash([]);
+ g.strokeStyle=col("--ac2");g.lineWidth=2.5;g.beginPath();let on=false,py=0;
+ for(let i=0;i<=W;i+=.5){const y=f(x0+(x1-x0)*i/W);if(!isFinite(y)){on=false;continue}const yy=Y(y);if(on&&Math.abs(yy-py)>H*.7)on=false;on?g.lineTo(i,yy):g.moveTo(i,yy);on=true;py=yy}g.stroke();
+ G.pts.forEach(q=>{if(q.x<x0||q.x>x1)return;g.fillStyle=q.c;g.beginPath();g.arc(X(q.x),Y(q.y),5,0,7);g.fill()})}
+addEventListener("resize",draw);
+const photo=async file=>{if(!file)return;const pv=$("#pv");pv.src=URL.createObjectURL(file);pv.style.display="block";say("Leyendo el ejercicio…");
+ let s=null;try{s=window.claude&&await window.claude.use("sample")}catch(e){}
+ if(!s){say("La lectura automática de fotos solo está disponible al abrir este enlace dentro de Claude. Escribe la función con el teclado de arriba.");return}
+ try{const l=await s.limits();if(!l.images){say("Este visor no permite leer imágenes. Escribe la función con el teclado.");return}
+  const r=await s("Extrae únicamente la función matemática f(x) de la imagen. Respóndela en texto plano usando x, ^, *, /, sqrt(), ln(), sin(), cos(), e^. Sin explicaciones ni la palabra f(x)=. Si hay varias, solo la primera.",{images:[file],modelTier:"quick"});
+  const t=(r.text||"").trim().split("\n")[0];if(!t)throw 0;$("#in").value=t;say("Leí: "+t+" (revísala antes de confiar en el resultado)");solve()}
+ catch(e){say("No pude leer la foto. Prueba con una imagen más nítida o escribe la función.")}};
+$("#cam").onchange=e=>photo(e.target.files[0]);$("#up").onchange=e=>photo(e.target.files[0]);
+</script>
+</body>
+</html>
